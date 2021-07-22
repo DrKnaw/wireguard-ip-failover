@@ -355,6 +355,8 @@ function revokeClient() {
 	# remove [Peer] block matching $CLIENT_NAME
 	sed -i "/^### Client ${CLIENT_NAME}\$/,/^$/d" "/etc/wireguard/${SERVER_WG_NIC}.conf"
 	sed -i "/^### Client ${CLIENT_NAME}\$/,/^$/d" "/etc/rc.local"
+	sed -i -e "/exit 0/d" /etc/rc.local
+	echo -e "exit 0" >>"/etc/rc.local"
 	 # remove generated client file
 	rm -f "${HOME}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
 
