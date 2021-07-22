@@ -1,7 +1,5 @@
 #!/bin/bash
-
-# Secure WireGuard server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux
-# https://github.com/angristan/wireguard-install
+#Based on https://github.com/angristan/wireguard-install
 
 RED='\033[0;31m'
 ORANGE='\033[0;33m'
@@ -218,7 +216,7 @@ function newClient() {
 	#echo "Tell me a name for the client."
 	#echo " "
 
-	until [[ ${CLIENT_NAME} =~ ^[a-zA-Z0-9._-]+$ && ${CLIENT_EXISTS} == '0' && ${#CLIENT_NAME} -lt 16 ]]; do
+	until [[ ${CLIENT_NAME} =~ ^[0-9.]+$ && ${CLIENT_EXISTS} == '0' && ${#CLIENT_NAME} -lt 16 ]]; do
 		read -rp "Saisissez l'IP Failover à ajouter: " -e CLIENT_NAME
 		CLIENT_EXISTS=$(grep -c -E "^### Client ${CLIENT_NAME}\$" "/etc/wireguard/${SERVER_WG_NIC}.conf")
 
@@ -229,9 +227,11 @@ function newClient() {
 		fi
 	done
 	ENDPOINT="${CLIENT_NAME}:${SERVER_PORT}"
-read -rp "Nom de l'interface: ens18:" -e INTERFACE_REPLY 
-	INTERFACE_NAME="ens18:$INTERFACE_REPLY"
-echo $INTERFACE_NAME
+	SERVER_NIC="$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)"
+	echo ${SERVER_NIC}
+read -rp "Nom de l'interface (eth1:0): ${SERVER_NIC}:" -e INTERFACE_ALIAS 
+	INTERFACE_NAME="${SERVER_NIC}:$INTERFACE_ALIAS"
+	echo $INTERFACE_NAME
 	for DOT_IP in {2..254}; do
 		DOT_EXISTS=$(grep -c "${SERVER_WG_IPV4::-1}${DOT_IP}" "/etc/wireguard/${SERVER_WG_NIC}.conf")
 		if [[ ${DOT_EXISTS} == '0' ]]; then
@@ -241,7 +241,7 @@ echo $INTERFACE_NAME
 
 	if [[ ${DOT_EXISTS} == '1' ]]; then
 		echo ""
-		echo "The subnet configured supports only 253 clients."
+		echo "Le sous-réseau configuré ne supporte que 253 clients."
 		exit 1
 	fi
 
@@ -295,11 +295,11 @@ CLIENT_WG_IPV6=''
 echo 
 sed -i -e "/exit 0/d" /etc/rc.local
 	echo -e "\n### Client ${CLIENT_NAME}
-ifconfig $INTERFACE_NAME $CLIENT_NAME
-iptables -t nat -A POSTROUTING -p udp --sport 59312 -d $CLIENT_NAME -o ens18 -j SNAT --to-source 10.66.66.1:59312
-iptables -t nat -A POSTROUTING -s ${CLIENT_WG_IPV4} -j SNAT -o ens18 --to-source $CLIENT_NAME
-iptables -t nat -A PREROUTING -p udp --dport 59312 -d $CLIENT_NAME -i ens18 -j DNAT --to-destination 10.66.66.1:59312
-iptables -t nat -A PREROUTING  -d $CLIENT_NAME -i ens18 -j DNAT --to-destination ${CLIENT_WG_IPV4}
+ifconfig ${SERVER_NIC}:$INTERFACE_ALIAS $CLIENT_NAME
+iptables -t nat -A POSTROUTING -p udp --sport ${SERVER_PORT} -d $CLIENT_NAME -o ${SERVER_NIC} -j SNAT --to-source ${SERVER_WG_IPV4}:${SERVER_PORT}
+iptables -t nat -A POSTROUTING -s ${CLIENT_WG_IPV4} -j SNAT -o ${SERVER_NIC} --to-source $CLIENT_NAME
+iptables -t nat -A PREROUTING -p udp --dport ${SERVER_PORT} -d $CLIENT_NAME -i ${SERVER_NIC} -j DNAT --to-destination ${SERVER_WG_IPV4}:${SERVER_PORT}
+iptables -t nat -A PREROUTING  -d $CLIENT_NAME -i ${SERVER_NIC} -j DNAT --to-destination ${CLIENT_WG_IPV4}
 exit 0" >>"/etc/rc.local"
 
 # Address = ${CLIENT_WG_IPV4}/32,${CLIENT_WG_IPV6}/128
@@ -324,11 +324,11 @@ AllowedIPs = ${CLIENT_WG_IPV4}/32" >>"/etc/wireguard/${SERVER_WG_NIC}.conf"
 
 	wg syncconf "${SERVER_WG_NIC}" <(wg-quick strip "${SERVER_WG_NIC}")
 
-	echo -e "\nVoici le fichier de configuration de votre client:"
+	echo -e "\nConfiguration Terminée:"
 
 #	qrencode -t ansiutf8 -l L <"${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
 
-	echo "Il est disponible en ${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
+	echo "${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
 	systemctl restart rc.local
 }
 
@@ -336,7 +336,7 @@ function revokeClient() {
 	NUMBER_OF_CLIENTS=$(grep -c -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf")
 	if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
 		echo ""
-		echo "You have no existing clients!"
+		echo "Aucun Client à Révoquer !"
 		exit 1
 	fi
 
@@ -421,10 +421,10 @@ function manageMenu() {
 	echo "Que voulez-vous faire ?"
 	echo "   1) Ajouter une IP"
 	echo "   2) Revoke une IP"
-	echo "   3) Désinstaller WireGuard"
-	echo "   4) Sortir"
-	until [[ ${MENU_OPTION} =~ ^[1-4]$ ]]; do
-		read -rp "Sélectionnez une option [1-4]: " MENU_OPTION
+#	echo "   3) Désinstaller WireGuard"
+#	echo "   4) Sortir"
+	until [[ ${MENU_OPTION} =~ ^[1-2]$ ]]; do
+		read -rp "Sélectionnez une option [1-2]: " MENU_OPTION
 	done
 	case "${MENU_OPTION}" in
 	1)
