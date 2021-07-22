@@ -212,10 +212,6 @@ net.ipv6.conf.all.forwarding = 1" >/etc/sysctl.d/wg.conf
 function newClient() {
 	ENDPOINT="${SERVER_PUB_IP}:${SERVER_PORT}"
 
-	#echo ""
-	#echo "Tell me a name for the client."
-	#echo " "
-
 	until [[ ${CLIENT_NAME} =~ ^[0-9.]+$ && ${CLIENT_EXISTS} == '0' && ${#CLIENT_NAME} -lt 16 ]]; do
 		read -rp "Saisissez l'IP Failover à ajouter: " -e CLIENT_NAME
 		CLIENT_EXISTS=$(grep -c -E "^### Client ${CLIENT_NAME}\$" "/etc/wireguard/${SERVER_WG_NIC}.conf")
@@ -292,7 +288,6 @@ CLIENT_WG_IPV6=''
 		# if not SUDO_USER, use /root
 		HOME_DIR="/root"
 	fi
-echo 
 sed -i -e "/exit 0/d" /etc/rc.local
 	echo -e "\n### Client ${CLIENT_NAME}
 ifconfig ${SERVER_NIC}:$INTERFACE_ALIAS $CLIENT_NAME
@@ -315,7 +310,6 @@ PresharedKey = ${CLIENT_PRE_SHARED_KEY}
 Endpoint = ${ENDPOINT}
 AllowedIPs = 0.0.0.0/0,::/0" >>"${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
 
-	# Add the client as a peer to the server
 	echo -e "\n### Client ${CLIENT_NAME}
 [Peer]
 PublicKey = ${CLIENT_PUB_KEY}
@@ -324,11 +318,11 @@ AllowedIPs = ${CLIENT_WG_IPV4}/32" >>"/etc/wireguard/${SERVER_WG_NIC}.conf"
 
 	wg syncconf "${SERVER_WG_NIC}" <(wg-quick strip "${SERVER_WG_NIC}")
 
-	echo -e "\nConfiguration Terminée:"
+	echo -e "Configuration Terminée\n"
 
 #	qrencode -t ansiutf8 -l L <"${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
 
-	echo "${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
+	echo "Client générer: ${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
 	systemctl restart rc.local
 }
 
@@ -362,7 +356,6 @@ function revokeClient() {
 
 	# restart wireguard to apply changes
 	wg syncconf "${SERVER_WG_NIC}" <(wg-quick strip "${SERVER_WG_NIC}")
-	nano +999999 /etc/rc.local
 }
 
 function uninstallWg() {
