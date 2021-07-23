@@ -60,11 +60,11 @@ function initialCheck() {
 }
 
 function installQuestions() {
-	echo "Welcome to the WireGuard installer!"
-	echo "The git repository is available at: https://github.com/angristan/wireguard-install"
+	echo "Bienvenue à l'installateur de WireGuard !"
+	echo "Basé sur: https://github.com/angristan/wireguard-install"
 	echo ""
-	echo "I need to ask you a few questions before starting the setup."
-	echo "You can leave the default options and just press enter if you are ok with them."
+	echo "Je dois vous poser quelques questions avant de commencer l'installation."
+	echo "Vous pouvez laisser les options par défaut et appuyer sur la touche Entrée si elles vous conviennent."
 	echo ""
 
 	# Detect public IPv4 or IPv6 address and pre-fill for the user
@@ -73,24 +73,24 @@ function installQuestions() {
 		# Detect public IPv6 address
 		SERVER_PUB_IP=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
 	fi
-	read -rp "IPv4 or IPv6 public address: " -e -i "${SERVER_PUB_IP}" SERVER_PUB_IP
+	read -rp "Adresse publique IPv4 ou IPv6: " -e -i "${SERVER_PUB_IP}" SERVER_PUB_IP
 
 	# Detect public interface and pre-fill for the user
 	SERVER_NIC="$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)"
 	until [[ ${SERVER_PUB_NIC} =~ ^[a-zA-Z0-9_]+$ ]]; do
-		read -rp "Public interface: " -e -i "${SERVER_NIC}" SERVER_PUB_NIC
+		read -rp "Interface public: " -e -i "${SERVER_NIC}" SERVER_PUB_NIC
 	done
 
 	until [[ ${SERVER_WG_NIC} =~ ^[a-zA-Z0-9_]+$ && ${#SERVER_WG_NIC} -lt 16 ]]; do
-		read -rp "WireGuard interface name: " -e -i wg0 SERVER_WG_NIC
+		read -rp "Nom de l'interface WireGuard: " -e -i wg0 SERVER_WG_NIC
 	done
 
 	until [[ ${SERVER_WG_IPV4} =~ ^([0-9]{1,3}\.){3} ]]; do
-		read -rp "Server's WireGuard IPv4: " -e -i 10.66.66.1 SERVER_WG_IPV4
+		read -rp "WireGuard IPv4 du serveur: " -e -i 10.66.66.1 SERVER_WG_IPV4
 	done
 
 	until [[ ${SERVER_WG_IPV6} =~ ^([a-f0-9]{1,4}:){3,4}: ]]; do
-		read -rp "Server's WireGuard IPv6: " -e -i fd42:42:42::1 SERVER_WG_IPV6
+		read -rp "WireGuard IPv6 du serveur: " -e -i fd42:42:42::1 SERVER_WG_IPV6
 	done
 
 	# Generate random number within private ports range
@@ -111,9 +111,9 @@ function installQuestions() {
 	done
 
 	echo ""
-	echo "Okay, that was all I needed. We are ready to setup your WireGuard server now."
-	echo "You will be able to generate a client at the end of the installation."
-	read -n1 -r -p "Press any key to continue..."
+	echo "Ok, c'était tout ce dont j'avais besoin. Nous sommes prêts à configurer votre serveur WireGuard maintenant."
+	echo "Vous pourrez générer un client à la fin de l'installation."
+	read -n1 -r -p "Appuyez sur n'importe quelle touche pour continuer..."
 }
 
 function installWireGuard() {
@@ -195,7 +195,7 @@ net.ipv6.conf.all.forwarding = 1" >/etc/sysctl.d/wg.conf
 	systemctl enable "wg-quick@${SERVER_WG_NIC}"
 
 	newClient
-	echo "If you want to add more clients, you simply need to run this script another time!"
+	echo "Si vous souhaitez ajouter d'autres IP, il vous suffit d'exécuter ce script une autre fois !"
 
 	# Check if WireGuard is running
 	systemctl is-active --quiet "wg-quick@${SERVER_WG_NIC}"
@@ -203,9 +203,9 @@ net.ipv6.conf.all.forwarding = 1" >/etc/sysctl.d/wg.conf
 
 	# WireGuard might not work if we updated the kernel. Tell the user to reboot
 	if [[ ${WG_RUNNING} -ne 0 ]]; then
-		echo -e "\n${RED}WARNING: WireGuard does not seem to be running.${NC}"
-		echo -e "${ORANGE}You can check if WireGuard is running with: systemctl status wg-quick@${SERVER_WG_NIC}${NC}"
-		echo -e "${ORANGE}If you get something like \"Cannot find device ${SERVER_WG_NIC}\", please reboot!${NC}"
+		echo -e "\n${RED}AVERTISSEMENT: WireGuard ne semble pas fonctionner.${NC}"
+		echo -e "${ORANGE}Vous pouvez vérifier si WireGuard est en cours d'exécution avec : systemctl status wg-quick@${SERVER_WG_NIC}${NC}"
+		echo -e "${ORANGE}Si vous obtenez quelque chose comme \"Cannot find device ${SERVER_WG_NIC}\", redémarrer!${NC}"
 	fi
 }
 
@@ -310,6 +310,7 @@ PresharedKey = ${CLIENT_PRE_SHARED_KEY}
 Endpoint = ${ENDPOINT}
 AllowedIPs = 0.0.0.0/0,::/0" >>"${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
 
+	# Add the client as a peer to the server
 	echo -e "\n### Client ${CLIENT_NAME}
 [Peer]
 PublicKey = ${CLIENT_PUB_KEY}
@@ -360,7 +361,7 @@ function revokeClient() {
 
 function uninstallWg() {
 	echo ""
-	read -rp "Do you really want to remove WireGuard? [y/n]: " -e -i n REMOVE
+	read -rp "Voulez-vous vraiment supprimer WireGuard ? [y/n]: " -e -i n REMOVE
 	if [[ $REMOVE == 'y' ]]; then
 		checkOS
 
@@ -412,12 +413,12 @@ function manageMenu() {
 	echo "Il semble que WireGuard est déjà installé."
 	echo ""
 	echo "Que voulez-vous faire ?"
-	echo "   1) Ajouter une IP"
-	echo "   2) Revoke une IP"
-#	echo "   3) Désinstaller WireGuard"
-#	echo "   4) Sortir"
-	until [[ ${MENU_OPTION} =~ ^[1-2]$ ]]; do
-		read -rp "Sélectionnez une option [1-2]: " MENU_OPTION
+	echo "   1) Ajouter une IP Failover"
+	echo "   2) Revoke une IP Failover"
+	echo "   3) Désinstaller WireGuard"
+	echo "   4) Exit"
+	until [[ ${MENU_OPTION} =~ ^[1-4]$ ]]; do
+		read -rp "Sélectionnez une option [1-4]: " MENU_OPTION
 	done
 	case "${MENU_OPTION}" in
 	1)
