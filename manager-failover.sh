@@ -225,7 +225,6 @@ function newClient() {
 	ENDPOINT="${CLIENT_NAME}:${SERVER_PORT}"
 	SERVER_NIC="$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)"
 	echo ${SERVER_NIC}
-read -rp "Nom de l'interface (eth1:0): ${SERVER_NIC}:" -e INTERFACE_ALIAS 
 	INTERFACE_NAME="${SERVER_NIC}:$INTERFACE_ALIAS"
 	echo $INTERFACE_NAME
 	for DOT_IP in {2..254}; do
@@ -253,7 +252,7 @@ read -rp "Nom de l'interface (eth1:0): ${SERVER_NIC}:" -e INTERFACE_ALIAS
 			echo ""
 		fi
 	done
-
+	read -rp "Alias de l'interface (eth1:0): ${SERVER_NIC}:" -e -i "${DOT_IP}" INTERFACE_ALIAS 
 	# BASE_IP=$(echo "$SERVER_WG_IPV6" | awk -F '::' '{ print $1 }')
 	# until [[ ${IPV6_EXISTS} == '0' ]]; do
 	# 	read -rp "Client's WireGuard IPv6: ${BASE_IP}::" -e -i "${DOT_IP}" DOT_IP
