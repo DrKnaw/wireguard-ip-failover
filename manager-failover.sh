@@ -24,7 +24,7 @@ function checkVirt() {
 		echo "but the kernel module has to be installed on the host,"
 		echo "the container has to be run with some specific parameters"
 		echo "and only the tools need to be installed in the container."
-		exit 1
+		read -n 1 -p "Press CTRL+C to Cancel or Enter to continue..."
 	fi
 }
 
