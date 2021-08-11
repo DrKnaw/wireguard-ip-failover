@@ -1,10 +1,7 @@
-# WireGuard installer
-
-![Lint](https://github.com/angristan/wireguard-install/workflows/Lint/badge.svg)
-![visitors](https://visitor-badge.glitch.me/badge?page_id=drknaw.wireguard-ip-failover-manager)
+# WireGuard IP Failover Manager
 
 **Based on [wireguard-install](https://github.com/angristan/wireguard-install)**
-
+![Images](https://github.com)
 ## Requirements
 
 Supported distributions:
