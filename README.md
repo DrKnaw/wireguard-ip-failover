@@ -19,6 +19,6 @@ chmod +x manager-failover.sh
 ./manager-failover.sh
 ```
 
-It will install WireGuard (kernel module and tools) on the server, configure it, create a systemd service and a client configuration file.
+It will install WireGuard (kernel module and tools) on the server, configure it, create a systemd service and configuration iptables and client.
 
 Run the script again to add or remove ip!
