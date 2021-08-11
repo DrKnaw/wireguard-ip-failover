@@ -60,11 +60,11 @@ function initialCheck() {
 }
 
 function installQuestions() {
-	echo "Bienvenue à l'installateur de WireGuard !"
-	echo "Basé sur: https://github.com/angristan/wireguard-install"
+	echo "Welcome to the WireGuard installer !"
+	echo "Based on: https://github.com/angristan/wireguard-install"
 	echo ""
-	echo "Je dois vous poser quelques questions avant de commencer l'installation."
-	echo "Vous pouvez laisser les options par défaut et appuyer sur la touche Entrée si elles vous conviennent."
+	echo "I need to ask you a few questions before we start the installation."
+	echo "You can leave the default options and press the Enter key if they work for you."
 	echo ""
 
 	# Detect public IPv4 or IPv6 address and pre-fill for the user
@@ -73,7 +73,7 @@ function installQuestions() {
 		# Detect public IPv6 address
 		SERVER_PUB_IP=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
 	fi
-	read -rp "Adresse publique IPv4 ou IPv6: " -e -i "${SERVER_PUB_IP}" SERVER_PUB_IP
+	read -rp "IPv4 or IPv6 public address: " -e -i "${SERVER_PUB_IP}" SERVER_PUB_IP
 
 	# Detect public interface and pre-fill for the user
 	SERVER_NIC="$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)"
@@ -82,15 +82,15 @@ function installQuestions() {
 	done
 
 	until [[ ${SERVER_WG_NIC} =~ ^[a-zA-Z0-9_]+$ && ${#SERVER_WG_NIC} -lt 16 ]]; do
-		read -rp "Nom de l'interface WireGuard: " -e -i wg0 SERVER_WG_NIC
+		read -rp "Name of the WireGuard interface: " -e -i wg0 SERVER_WG_NIC
 	done
 
 	until [[ ${SERVER_WG_IPV4} =~ ^([0-9]{1,3}\.){3} ]]; do
-		read -rp "WireGuard IPv4 du serveur: " -e -i 10.66.66.1 SERVER_WG_IPV4
+		read -rp "WireGuard IPv4 server: " -e -i 10.66.66.1 SERVER_WG_IPV4
 	done
 
 	until [[ ${SERVER_WG_IPV6} =~ ^([a-f0-9]{1,4}:){3,4}: ]]; do
-		read -rp "WireGuard IPv6 du serveur: " -e -i fd42:42:42::1 SERVER_WG_IPV6
+		read -rp "WireGuard IPv6 server: " -e -i fd42:42:42::1 SERVER_WG_IPV6
 	done
 
 	# Generate random number within private ports range
@@ -111,9 +111,9 @@ function installQuestions() {
 	done
 
 	echo ""
-	echo "Ok, c'était tout ce dont j'avais besoin. Nous sommes prêts à configurer votre serveur WireGuard maintenant."
-	echo "Vous pourrez générer un client à la fin de l'installation."
-	read -n1 -r -p "Appuyez sur n'importe quelle touche pour continuer..."
+	echo "Okay, that was all I needed. We are ready to configure your WireGuard server now."
+	echo "You can generate a client at the end of the installation."
+	read -n 1 -r -p "Press any key to continue..."
 }
 
 function installWireGuard() {
@@ -189,13 +189,30 @@ PostDown = iptables -D FORWARD -i ${SERVER_PUB_NIC} -o ${SERVER_WG_NIC} -j ACCEP
 	echo "net.ipv4.ip_forward = 1
 net.ipv6.conf.all.forwarding = 1" >/etc/sysctl.d/wg.conf
 
-	sysctl --system
+echo -e "[Unit]
+ Description=DrKnaw Wireguard IP Failover Manager
+ ConditionPathExists=/etc/wireguard-ipfo-iptables
 
+[Service]
+ Type=forking
+ ExecStart=/etc/wireguard-ipfo-iptables start
+ TimeoutSec=0
+ StandardOutput=tty
+ RemainAfterExit=yes
+ SysVStartPriority=99
+
+[Install]
+ WantedBy=multi-user.target" >>"/etc/systemd/system/wg-ipfo-manager.service"
+
+	sysctl --system
+	
+	systemctl start wg-ipfo-manager
+	systemctl enable wg-ipfo-manager
 	systemctl start "wg-quick@${SERVER_WG_NIC}"
 	systemctl enable "wg-quick@${SERVER_WG_NIC}"
 
 	newClient
-	echo "Si vous souhaitez ajouter d'autres IP, il vous suffit d'exécuter ce script une autre fois !"
+	echo "If you want to add more IPs, just run this script again!"
 
 	# Check if WireGuard is running
 	systemctl is-active --quiet "wg-quick@${SERVER_WG_NIC}"
@@ -203,9 +220,9 @@ net.ipv6.conf.all.forwarding = 1" >/etc/sysctl.d/wg.conf
 
 	# WireGuard might not work if we updated the kernel. Tell the user to reboot
 	if [[ ${WG_RUNNING} -ne 0 ]]; then
-		echo -e "\n${RED}AVERTISSEMENT: WireGuard ne semble pas fonctionner.${NC}"
-		echo -e "${ORANGE}Vous pouvez vérifier si WireGuard est en cours d'exécution avec : systemctl status wg-quick@${SERVER_WG_NIC}${NC}"
-		echo -e "${ORANGE}Si vous obtenez quelque chose comme \"Cannot find device ${SERVER_WG_NIC}\", redémarrer!${NC}"
+		echo -e "\n${RED}WARNING: WireGuard does not appear to be working.${NC}"
+		echo -e "${ORANGE}You can check if WireGuard is running with: systemctl status wg-quick@${SERVER_WG_NIC}${NC}"
+		echo -e "${ORANGE}If you get something like \"Cannot find device ${SERVER_WG_NIC}\", reboot!${NC}"
 	fi
 }
 
@@ -213,12 +230,12 @@ function newClient() {
 	ENDPOINT="${SERVER_PUB_IP}:${SERVER_PORT}"
 
 	until [[ ${CLIENT_NAME} =~ ^[0-9.]+$ && ${CLIENT_EXISTS} == '0' && ${#CLIENT_NAME} -lt 16 ]]; do
-		read -rp "Saisissez l'IP Failover à ajouter: " -e CLIENT_NAME
+		read -rp "Enter the IP Failover to add: " -e CLIENT_NAME
 		CLIENT_EXISTS=$(grep -c -E "^### Client ${CLIENT_NAME}\$" "/etc/wireguard/${SERVER_WG_NIC}.conf")
 
 		if [[ ${CLIENT_EXISTS} == '1' ]]; then
 			echo ""
-			echo "Un client avec l'IP spécifiée a déjà été créé, veuillez choisir un autre nom."
+			echo "A client with the specified IP has already been created, please add another IP."
 			echo ""
 		fi
 	done
@@ -236,7 +253,7 @@ function newClient() {
 
 	if [[ ${DOT_EXISTS} == '1' ]]; then
 		echo ""
-		echo "Le sous-réseau configuré ne supporte que 253 clients."
+		echo "The configured subnet only supports 253 clients."
 		exit 1
 	fi
 
@@ -248,7 +265,7 @@ function newClient() {
 
 		if [[ ${IPV4_EXISTS} == '1' ]]; then
 			echo ""
-			echo "Un client avec l'IPv4 spécifié a déjà été créé, veuillez choisir une autre IPv4."
+			echo "A client with the specified IPv4 has already been created, please choose another IPv4."
 			echo ""
 		fi
 	done
@@ -287,14 +304,14 @@ CLIENT_WG_IPV6=''
 		# if not SUDO_USER, use /root
 		HOME_DIR="/root"
 	fi
-sed -i -e "/exit 0/d" /etc/rc.local
+sed -i -e "/exit 0/d" /etc/wireguard-ipfo-iptables
 	echo -e "\n### Client ${CLIENT_NAME}
 ifconfig ${SERVER_NIC}:$INTERFACE_ALIAS $CLIENT_NAME
 iptables -t nat -A POSTROUTING -p udp --sport ${SERVER_PORT} -d $CLIENT_NAME -o ${SERVER_NIC} -j SNAT --to-source ${SERVER_WG_IPV4}:${SERVER_PORT}
 iptables -t nat -A POSTROUTING -s ${CLIENT_WG_IPV4} -j SNAT -o ${SERVER_NIC} --to-source $CLIENT_NAME
 iptables -t nat -A PREROUTING -p udp --dport ${SERVER_PORT} -d $CLIENT_NAME -i ${SERVER_NIC} -j DNAT --to-destination ${SERVER_WG_IPV4}:${SERVER_PORT}
 iptables -t nat -A PREROUTING  -d $CLIENT_NAME -i ${SERVER_NIC} -j DNAT --to-destination ${CLIENT_WG_IPV4}
-exit 0" >>"/etc/rc.local"
+exit 0" >>"/etc/wireguard-ipfo-iptables"
 
 # Address = ${CLIENT_WG_IPV4}/32,${CLIENT_WG_IPV6}/128
 	# Create client file and add the server as a peer
@@ -318,23 +335,23 @@ AllowedIPs = ${CLIENT_WG_IPV4}/32" >>"/etc/wireguard/${SERVER_WG_NIC}.conf"
 
 	wg syncconf "${SERVER_WG_NIC}" <(wg-quick strip "${SERVER_WG_NIC}")
 
-	echo -e "Configuration Terminée\n"
+	echo -e "Configuration Completed\n"
 
 #	qrencode -t ansiutf8 -l L <"${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
 
 	echo "Client générer: ${HOME_DIR}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
-	systemctl restart rc.local
+	systemctl restart wg-ipfo-manager
 }
 
 function revokeClient() {
 	NUMBER_OF_CLIENTS=$(grep -c -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf")
 	if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
 		echo ""
-		echo "Aucun Client à Révoquer !"
+		echo "No IP to Revoke !"
 		exit 1
 	fi
 
-	echo "Sélectionnez le client existant que vous voulez révoquer:"
+	echo "Select the existing client you want to revoke:"
 	grep -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf" | cut -d ' ' -f 3 | nl -s ') '
 	until [[ ${CLIENT_NUMBER} -ge 1 && ${CLIENT_NUMBER} -le ${NUMBER_OF_CLIENTS} ]]; do
 		if [[ ${CLIENT_NUMBER} == '1' ]]; then
@@ -348,9 +365,9 @@ function revokeClient() {
 	CLIENT_NAME=$(grep -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf" | cut -d ' ' -f 3 | sed -n "${CLIENT_NUMBER}"p)
 	# remove [Peer] block matching $CLIENT_NAME
 	sed -i "/^### Client ${CLIENT_NAME}\$/,/^$/d" "/etc/wireguard/${SERVER_WG_NIC}.conf"
-	sed -i "/^### Client ${CLIENT_NAME}\$/,/^$/d" "/etc/rc.local"
-	sed -i -e "/exit 0/d" /etc/rc.local
-	echo -e "exit 0" >>"/etc/rc.local"
+	sed -i "/^### Client ${CLIENT_NAME}\$/,/^$/d" "/etc/wireguard-ipfo-iptables"
+	sed -i -e "/exit 0/d" /etc/wireguard-ipfo-iptables
+	echo -e "exit 0" >>"/etc/wireguard-ipfo-iptables"
 	 # remove generated client file
 	rm -f "${HOME}/${SERVER_WG_NIC}-client-${CLIENT_NAME}.conf"
 
@@ -360,7 +377,7 @@ function revokeClient() {
 
 function uninstallWg() {
 	echo ""
-	read -rp "Voulez-vous vraiment supprimer WireGuard ? [y/n]: " -e -i n REMOVE
+	read -rp "Do you really want to remove WireGuard? [y/n]: " -e -i n REMOVE
 	if [[ $REMOVE == 'y' ]]; then
 		checkOS
 
@@ -409,15 +426,15 @@ function uninstallWg() {
 }
 
 function manageMenu() {
-	echo "Il semble que WireGuard est déjà installé."
+	echo "It seems that WireGuard is already installed."
 	echo ""
-	echo "Que voulez-vous faire ?"
-	echo "   1) Ajouter une IP Failover"
-	echo "   2) Revoke une IP Failover"
-	echo "   3) Désinstaller WireGuard"
+	echo "What do you want to do?"
+	echo "   1) Add an IP Failover"
+	echo "   2) Revoke an IP Failover"
+	echo "   3) Uninstall WireGuard"
 	echo "   4) Exit"
 	until [[ ${MENU_OPTION} =~ ^[1-4]$ ]]; do
-		read -rp "Sélectionnez une option [1-4]: " MENU_OPTION
+		read -rp "Select an option [1-4]: " MENU_OPTION
 	done
 	case "${MENU_OPTION}" in
 	1)
