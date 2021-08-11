@@ -1,7 +1,9 @@
 # WireGuard IP Failover Manager
 
 **Based on [wireguard-install](https://github.com/angristan/wireguard-install)**
+
 ![Images](https://github.com)
+
 ## Requirements
 
 Supported distributions:
