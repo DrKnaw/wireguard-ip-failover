@@ -205,7 +205,7 @@ echo -e "[Unit]
  WantedBy=multi-user.target" >>"/etc/systemd/system/wg-ipfo-manager.service"
 
 	sysctl --system
-	
+	chmod +x /etc/wireguard-ipfo-iptables
 	systemctl start wg-ipfo-manager
 	systemctl enable wg-ipfo-manager
 	systemctl start "wg-quick@${SERVER_WG_NIC}"
